@@ -241,7 +241,7 @@ module dut(CLK,
       sw_override <= `BSV_ASSIGNMENT_DELAY 1'd0;
     end
   else
-    begin
+    begin 
       if (busy$EN) busy <= `BSV_ASSIGNMENT_DELAY busy$D_IN;
       if (current_count$EN)
 	current_count <= `BSV_ASSIGNMENT_DELAY current_count$D_IN;
