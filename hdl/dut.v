@@ -136,10 +136,15 @@ module dut(CLK,
   wire [16 : 0] x__h969;
   wire [7 : 0] next_count__h523;
   wire current_count_PLUS_1_EQ_programmed_length___d8;
+  reg pause_delay;                                                          /* samples pause and makes sure its effect is reflected 
+                                                                               only after accumulation has begun (i.e after busy is asserted) */
+  
 
   // action method din
-  assign din_rdy = (busy || !pause) && dout_ff$FULL_N ;
-
+  assign din_rdy = !(programmed_length ==0) && 
+                    ((busy || !pause_delay) && dout_ff$FULL_N);             //asserted only after programmed length has been set
+                                        
+  //assign din_rdy = (busy || !pause) && dout_ff$FULL_N ;
   // actionvalue method dout
   assign dout_value = dout_ff$D_OUT ;
   assign dout_rdy = dout_ff$EMPTY_N ;
@@ -183,7 +188,7 @@ module dut(CLK,
 
   // register pause
   assign pause$D_IN = cfg_data_in[1] ;
-  assign pause$EN = w_sw_override$whas ;
+  assign pause$EN = w_sw_override$whas;
 
   // register programmed_length
   assign programmed_length$D_IN =
@@ -191,8 +196,9 @@ module dut(CLK,
 	       len_value :
 	       cfg_data_in[7:0] ;
   assign programmed_length$EN =
-	     len_en && !sw_override && !busy ||
-	     cfg_en && cfg_op && cfg_address == 8'd8 && sw_override ;
+	     (len_en && !sw_override ||                             
+	     cfg_en && cfg_op && cfg_address == 8'd8 && sw_override) && 
+	     !(busy || current_count_PLUS_1_EQ_programmed_length___d8) ;                                      
 
   // register sum
   assign sum$D_IN = sum + din_value ;
@@ -204,15 +210,16 @@ module dut(CLK,
 
   // submodule dout_ff
   assign dout_ff$D_IN = sum + din_value ;
-  assign dout_ff$ENQ =
-	     din_en && current_count_PLUS_1_EQ_programmed_length___d8 ;
+  assign dout_ff$ENQ = din_en && current_count_PLUS_1_EQ_programmed_length___d8 ; 
+
   assign dout_ff$DEQ = dout_en ;
   assign dout_ff$CLR = 1'b0 ;
 
   // remaining internal signals
   assign current_count_PLUS_1_EQ_programmed_length___d8 =
-	     next_count__h523 == programmed_length ;
-  assign next_count__h523 = current_count + 8'd1 ;
+	     next_count__h523 == programmed_length ;                        
+	     
+  assign next_count__h523 = current_count + 8'd1 ;                                   
   assign x__h969 = { busy, programmed_length, current_count } ;
   always@(cfg_address or programmed_length or x__h969 or sw_override)
   begin
@@ -241,7 +248,7 @@ module dut(CLK,
       sw_override <= `BSV_ASSIGNMENT_DELAY 1'd0;
     end
   else
-    begin 
+    begin
       if (busy$EN) busy <= `BSV_ASSIGNMENT_DELAY busy$D_IN;
       if (current_count$EN)
 	current_count <= `BSV_ASSIGNMENT_DELAY current_count$D_IN;
@@ -251,7 +258,13 @@ module dut(CLK,
       if (sum$EN) sum <= `BSV_ASSIGNMENT_DELAY sum$D_IN;
       if (sw_override$EN)
 	sw_override <= `BSV_ASSIGNMENT_DELAY sw_override$D_IN;
+	  if (din_en) pause_delay<=pause;
+	
+
+	    
     end
+    
+    
 
   // synopsys translate_off
   `ifdef BSV_NO_INITIAL_BLOCKS
@@ -264,6 +277,7 @@ module dut(CLK,
     programmed_length = 8'hAA;
     sum = 8'hAA;
     sw_override = 1'h0;
+    pause_delay=1'h0;
   end
   `endif // BSV_NO_INITIAL_BLOCKS
   // synopsys translate_on
