@@ -180,7 +180,7 @@ class InputDriver(BusDriver):                                                   
         await RisingEdge(self.clk)
         self.bus.en.value = 0                                                                      #enable pulse goes low
         await NextTimeStep()
-         
+          
         
         
 
